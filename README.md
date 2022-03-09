@@ -9,7 +9,7 @@ With the code in this repository, it is possible to recreate all results of our 
 1) First install the needed dependencies using pip:
 
 ```
-pip install pandas numpy pymc3 theano sklearn arviz tqdm deepface imblearn matplotlib seaborn skimage
+pip install pandas numpy pymc3 theano sklearn arviz tqdm deepface imblearn matplotlib seaborn scikit-image
 ```
 
 2) Download/clone this repository.
