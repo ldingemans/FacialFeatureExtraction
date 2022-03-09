@@ -26,6 +26,3 @@ In the `explainability` folder, you can find the needed scripts to generate all 
 To repeat the analysis on your own dataset and generate the corresponding tables/figures in our paper, please first adjust the `file_paths` list in `softmax_regression.py` to point the list to the images. Adjust labels as well, to make sure we know the training labels. Then, just run the scripts in `softmax_regression.py` and you are all set!
 
 When desirable, the number of folds and number of times to resample can be adjusted in the script, see the two corresponding variables (`N_FOLDS` and `N_RESAMPLE`). 
-
-
-x
