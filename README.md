@@ -15,6 +15,7 @@ pip install pandas numpy pymc3 theano sklearn arviz tqdm deepface imblearn matpl
 2) Download/clone this repository.
 
 <h2>Overall structure of repository</h2>
+
 The main analysis can be run from the `softmax_regression.py` script in the root directory. If you are interested in the different feature extraction methods, please see the 
 `process_images.py` script in the `feature_extraction` directory. Do note that processing of images with the hybrid model is not possible in Python and needs its own virtual machine: if you are interested, please contact me and I will supply the needed files.
 
