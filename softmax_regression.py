@@ -52,36 +52,7 @@ if __name__ == '__main__':
     N_FOLDS = 10 #number of folds for cross validation
     N_RESAMPLE = 5 #number of times to rerun the random under/oversampling analysis
     
-    file_paths = ['\\\\umcsanfsclp01\\gen_archive\\Genetica-Projecten\\Facial Recognition\\Facial Recognition Syndromen\\DDX3X\\photos\\DDX3X_1.jpg',
-     '\\\\umcsanfsclp01\\gen_archive\\Genetica-Projecten\\Facial Recognition\\Facial Recognition Syndromen\\DDX3X\\photos\\DDX3X_10.jpg',
-     '\\\\umcsanfsclp01\\gen_archive\\Genetica-Projecten\\Facial Recognition\\Facial Recognition Syndromen\\DDX3X\\photos\\DDX3X_11.jpg',
-     '\\\\umcsanfsclp01\\gen_archive\\Genetica-Projecten\\Facial Recognition\\Facial Recognition Syndromen\\DDX3X\\photos\\DDX3X_12.jpg',
-     '\\\\umcsanfsclp01\\gen_archive\\Genetica-Projecten\\Facial Recognition\\Facial Recognition Syndromen\\DDX3X\\photos\\DDX3X_13.jpg',
-     '\\\\umcsanfsclp01\\gen_archive\\Genetica-Projecten\\Facial Recognition\\Facial Recognition Syndromen\\DDX3X\\photos\\DDX3X_14.jpg',
-     '\\\\umcsanfsclp01\\gen_archive\\Genetica-Projecten\\Facial Recognition\\Facial Recognition Syndromen\\DDX3X\\photos\\DDX3X_15.jpg',
-     '\\\\umcsanfsclp01\\gen_archive\\Genetica-Projecten\\Facial Recognition\\Facial Recognition Syndromen\\DDX3X\\photos\\DDX3X_16.jpg',
-     '\\\\umcsanfsclp01\\gen_archive\\Genetica-Projecten\\Facial Recognition\\Facial Recognition Syndromen\\DDX3X\\photos\\DDX3X_17.jpg',
-     '\\\\umcsanfsclp01\\gen_archive\\Genetica-Projecten\\Facial Recognition\\Facial Recognition Syndromen\\DDX3X\\photos\\DDX3X_18.jpg',
-     '\\\\umcsanfsclp01\\gen_archive\\Genetica-Projecten\\Facial Recognition\\Facial Recognition Syndromen\\KdVs\\KdVs all data\\kdvs_133\\12_Cambridge2_6x7_241.jpg',
-      '\\\\umcsanfsclp01\\gen_archive\\Genetica-Projecten\\Facial Recognition\\Facial Recognition Syndromen\\KdVs\\KdVs all data\\kdvs_134\\20_Cambridge1_6x7_te laag.jpg',
-      '\\\\umcsanfsclp01\\gen_archive\\Genetica-Projecten\\Facial Recognition\\Facial Recognition Syndromen\\KdVs\\KdVs all data\\Kdvs_135\\KuenzE (2).jpg',
-      '\\\\umcsanfsclp01\\gen_archive\\Genetica-Projecten\\Facial Recognition\\Facial Recognition Syndromen\\KdVs\\KdVs all data\\kdvs_136\\individual2_paper_Koolen_KANSL1_atypical_microdeletion.png',
-      '\\\\umcsanfsclp01\\gen_archive\\Genetica-Projecten\\Facial Recognition\\Facial Recognition Syndromen\\KdVs\\KdVs all data\\kdvs_138\\kdvs_138_2yrs_2.JPG',
-      '\\\\umcsanfsclp01\\gen_archive\\Genetica-Projecten\\Facial Recognition\\Facial Recognition Syndromen\\KdVs\\KdVs all data\\kdvs_139\\IMG_0909.JPG',
-      '\\\\umcsanfsclp01\\gen_archive\\Genetica-Projecten\\Facial Recognition\\Facial Recognition Syndromen\\KdVs\\KdVs all data\\kdvs_140\\DSC03679.JPG',
-      '\\\\umcsanfsclp01\\gen_archive\\Genetica-Projecten\\Facial Recognition\\Facial Recognition Syndromen\\KdVs\\KdVs all data\\kdvs_142\\kdvs_142_2.jpg',
-      '\\\\umcsanfsclp01\\gen_archive\\Genetica-Projecten\\Facial Recognition\\Facial Recognition Syndromen\\KdVs\\KdVs all data\\kdvs_145\\18996854.jpg',
-      '\\\\umcsanfsclp01\\gen_archive\\Genetica-Projecten\\Facial Recognition\\Facial Recognition Syndromen\\KdVs\\KdVs all data\\kdvs_146\\18995606.jpg',
-      '\\\\umcsanfsclp01\\gen_archive\\Genetica-Projecten\\Facial Recognition\\Facial Recognition Syndromen\\ANKRD11\\ANKRD11 Photos of patients\\ANKRD11_10.jpg',
-       '\\\\umcsanfsclp01\\gen_archive\\Genetica-Projecten\\Facial Recognition\\Facial Recognition Syndromen\\ANKRD11\\ANKRD11 Photos of patients\\ANKRD11_11.jpg',
-       '\\\\umcsanfsclp01\\gen_archive\\Genetica-Projecten\\Facial Recognition\\Facial Recognition Syndromen\\ANKRD11\\ANKRD11 Photos of patients\\ANKRD11_13_2.jpg',
-       '\\\\umcsanfsclp01\\gen_archive\\Genetica-Projecten\\Facial Recognition\\Facial Recognition Syndromen\\ANKRD11\\ANKRD11 Photos of patients\\ANKRD11_14.jpg',
-       '\\\\umcsanfsclp01\\gen_archive\\Genetica-Projecten\\Facial Recognition\\Facial Recognition Syndromen\\ANKRD11\\ANKRD11 Photos of patients\\ANKRD11_15.jpg',
-       '\\\\umcsanfsclp01\\gen_archive\\Genetica-Projecten\\Facial Recognition\\Facial Recognition Syndromen\\ANKRD11\\ANKRD11 Photos of patients\\ANKRD11_16.jpg',
-       '\\\\umcsanfsclp01\\gen_archive\\Genetica-Projecten\\Facial Recognition\\Facial Recognition Syndromen\\ANKRD11\\ANKRD11 Photos of patients\\ANKRD11_17.jpg',
-       '\\\\umcsanfsclp01\\gen_archive\\Genetica-Projecten\\Facial Recognition\\Facial Recognition Syndromen\\ANKRD11\\ANKRD11 Photos of patients\\ANKRD11_18.jpg',
-       '\\\\umcsanfsclp01\\gen_archive\\Genetica-Projecten\\Facial Recognition\\Facial Recognition Syndromen\\ANKRD11\\ANKRD11 Photos of patients\\ANKRD11_19.jpg',
-       '\\\\umcsanfsclp01\\gen_archive\\Genetica-Projecten\\Facial Recognition\\Facial Recognition Syndromen\\ANKRD11\\ANKRD11 Photos of patients\\ANKRD11_20.jpg']
+    file_paths = ['']
     
     labels = np.array(['DDX3X'] * 10 + ['KANSL1'] * 10 + ['ANKD11'] * 10)
     
