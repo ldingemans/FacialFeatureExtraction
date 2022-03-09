@@ -5,6 +5,7 @@ The code of the paper in which we compare three facial feature extraction method
 With the code in this repository, it is possible to recreate all results of our study (given the input data) and furthermore, use the different facial feature extraction methods for your own images/dataset.
 
 <h2>Prerequisites</h2>
+
 1) First install the needed dependencies using pip:
 
 ```
