@@ -1,4 +1,4 @@
-Comparison of three facial feature extraction methods
+<h1>Comparison of three facial feature extraction methods</h1>
 
 The code of the paper in which we compare three facial feature extraction methods in the diagnosis of individuals with genetic disorders.
 
