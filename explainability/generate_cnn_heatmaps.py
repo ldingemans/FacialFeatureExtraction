@@ -8,7 +8,7 @@ from deepface import *
 from glob import glob
 from tqdm import tqdm
 
-def calculate_accuracies_lfw(path_to_lfw_database=r"C:\Users\manz184215\scikit_learn_data\lfw_home\lfw"):
+def calculate_accuracies_lfw(path_to_lfw_database):
     """
     Calculate the classification accuracy in the Labeled Faces in the Wild (LFW) database.
     
