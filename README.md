@@ -19,7 +19,7 @@ pip install pandas numpy pymc3 theano sklearn arviz tqdm deepface imblearn matpl
 The main analysis can be run from the `softmax_regression.py` script in the root directory. If you are interested in the different feature extraction methods, please see the 
 `process_images.py` script in the `feature_extraction` directory. Do note that processing of images with the hybrid model is not possible in Python and needs its own virtual machine: if you are interested, please contact me and I will supply the needed files.
 
-In the `explainability` folder, you can find the needed scripts to generate all figures and tables displayed in our paper. Furthermore the code to generate activation maps for VGG-Face is there, as is the code to extract partial facial features from a picture to inspect the VGG-Face feature vector.
+In the `explainability` folder, you can find the needed scripts to generate all figures and tables displayed in our paper. Furthermore the code to generate activation maps for VGG-Face is there, as is the code to generate the LIME heatmaps.
 
 <h2>Retraining the model on your own images</h2>
 
