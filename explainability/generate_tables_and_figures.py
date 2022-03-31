@@ -237,51 +237,6 @@ def confusion_matrices(df_results_20, df_results_40):
     plt.show()
     return
 
-def bar_chart_supplement(df_results, df_results_selected_feat):
-   """
-   Generate the bar chart for the supplemental figure
-    
-   Parameters
-   ----------
-   df_results : pandas dataframe 
-       Dataframe with the results from the softmax regression (see softmax_regression.py)
-   """
-   import numpy as np
-   import scipy.stats as st
-
-   accuracies = []
-   for i in range(len(df_results)):
-       accuracies.append(np.mean(df_results.y_true_vgg[i] == df_results.vgg_classes[i]))
-   min_ci_sel, max_ci_sel = np.round(st.t.interval(0.95, len(accuracies)-1, loc=np.mean(accuracies), scale=st.sem(accuracies)),2)
-   mean_sel = np.round(np.mean(accuracies),2)
-   
-   accuracies = []
-   for i in range(len(df_results_selected_feat)):
-       accuracies.append(np.mean(df_results_selected_feat.y_true_vgg[i] == df_results_selected_feat.vgg_classes[i]))
-   min_ci_all, max_ci_all = np.round(st.t.interval(0.95, len(accuracies)-1, loc=np.mean(accuracies), scale=st.sem(accuracies)),2)
-   mean_all = np.round(np.mean(accuracies),2)
-   
-   mean_all_lfw = 0.976
-   mean_sel_lfw = 0.973
-   
-   df_data = pd.DataFrame()
-   df_data['mean'] = [mean_all, mean_sel, mean_all_lfw, mean_sel_lfw]
-   df_data['dataset'] = ['Genetic syndromes', 'Genetic syndromes', 'Labeled Faces in the Wild', 'Labeled Faces in the Wild']
-   df_data['features'] = ['Full feature vector (2622)', 'Selected features only (197)', 'Full feature vector (2622)', 'Selected features only (197)']
-
-   sns.set_theme(style="whitegrid")
-    # Draw a nested barplot by species and sex
-   g = sns.catplot(
-        data=df_data, kind="bar",
-        x="mean", y="dataset", hue="features",
-        ci="sd", palette="dark", alpha=0.8, height=5, aspect=2, orient='h'
-   )
-   g.despine(left=True, bottom=True)
-   g.set_axis_labels("", "Accuracy")
-   g.legend.set_title("")
-   g.savefig("barchart_supplement.eps", dpi=300)
-   return
-
 def print_results(df_results_20, df_results_40):
     """
     Generate the results table with the results
