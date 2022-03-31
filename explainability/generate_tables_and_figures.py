@@ -21,6 +21,7 @@ def make_confusion_matrix(cf,ax,
                           title=None):
     '''
     This function will make a pretty plot of an sklearn Confusion Matrix cm using a Seaborn heatmap visualization.
+    See https://medium.com/@dtuk81/confusion-matrix-visualization-fc31e3f30fea all credit to original author Dennis T
 
     Parameters
     ---------
