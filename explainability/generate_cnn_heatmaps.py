@@ -1,5 +1,3 @@
-from deepface.basemodels.VGGFace import loadModel
-from keras import models
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -7,87 +5,106 @@ from deepface.commons import functions, realtime, distance as dst
 from deepface import *
 from glob import glob
 from tqdm import tqdm
-    
-def get_norm_image(img_path):
-    """
-    Preprocess the image for VGG-Face, using MTCNN (detect face, alignment, etc)
-    
-    Parameters
-    ----------
-    img_path: str
-        Path to the image to process
-        
-    Returns
-    -------
-    img_tensor: numpy array
-        The preprocessed image in array form
-    """
-    classifier = loadModel()
-    input_shape_x, input_shape_y = functions.find_input_shape(classifier)
-    
-    img = functions.preprocess_face(img = img_path
-       		, target_size=(input_shape_y, input_shape_x)
-       		, enforce_detection = True
-       		, detector_backend = 'mtcnn'
-       		, align = True)
-    
-    img_tensor = functions.normalize_input(img = img, normalization = 'base')
-    return img_tensor
+import torch
+import torch.nn as nn  # Import nn module
+from PIL import Image
 
-def generate_activation_maps(path_to_image):
+
+def get_feature_maps(model, input_tensor):
+    """
+    Function to get feature maps for each layer of the given model.
+
+    Args:
+    model (torch.nn.Module): The neural network model.
+    input_tensor (torch.Tensor): The input tensor for the model.
+
+    Returns:
+    dict: A dictionary where keys are layer names and values are corresponding feature maps.
+    """
+
+    feature_maps = {}
+
+    model.eval()
+
+    def hook_fn(module, input, output):
+        # Use the module's name as the key
+        for name, mod in model.named_modules():
+            if mod == module and 'Conv_' in  name:
+                feature_maps[name] = output.detach()
+                break
+
+    hooks = []
+    for name, layer in model.named_modules():
+        if isinstance(layer, nn.Conv2d):
+            hooks.append(layer.register_forward_hook(hook_fn))
+
+    model(input_tensor)
+
+    for hook in hooks:
+        hook.remove()
+    return feature_maps
+
+
+def generate_activation_maps(models, path_to_preprocessed_image, save_dir):
     """
     Generate activation maps for a speficic image for VGG-Face
     
     Parameters
     ----------
-    path_to_image: str
-        Path to the image to process
+    models: list
+        List of the three GestaltMatcher-arc bayesian_models
+    path_to_preprocessed_image: str
+        Path to the preprocessed image to process
+    save_dir: str
+        Path to output directory
     """
-    classifier = loadModel()
-    
-    img_tensor = get_norm_image(path_to_image)
-    
-    layer_outputs = [layer.output for layer in classifier.layers[1:]] # Extracts the outputs of the top 12 layers
-    activation_model = models.Model(inputs=classifier.input, outputs=layer_outputs) # Creates a model that will return these outputs, given the model input
-    activations = activation_model.predict(img_tensor) # Returns a list of five Numpy arrays: one array per layer activation
-    
-    layer_names = []
-    for layer in classifier.layers[1:]:
-        layer_names.append(layer.name) # Names of the layers, so you can have them as part of your plot
-        
-    count = 0
-    
-    for layer_name, layer_activation in zip(layer_names, activations): # Displays the feature maps
-        count += 1
-        if ('conv' not in layer_name):
-            continue
-        n_features = layer_activation.shape[-1] # Number of features in the feature map
-        if count == 1:
-            images_per_row = 3
-        else:
-            images_per_row = int(np.round(np.sqrt(n_features)))
-        size = layer_activation.shape[1] #The feature map has shape (1, size, size, n_features).
-        n_cols = n_features // images_per_row # Tiles the activation channels in this matrix
-        display_grid = np.zeros((size * n_cols, images_per_row * size))
-        for col in range(n_cols): # Tiles each filter into a big horizontal grid
-            for row in range(images_per_row):
-                channel_image = layer_activation[0,
-                                                 :, :,
-                                                 col * images_per_row + row]
-                if count < 32:
-                    channel_image -= channel_image.mean() # Post-processes the feature to make it visually palatable
-                    channel_image /= channel_image.std()
-                channel_image *= 64
-                channel_image += 128
-                channel_image = np.clip(channel_image, 0, 255).astype('uint8')
-                display_grid[col * size : (col + 1) * size, # Displays the grid
-                             row * size : (row + 1) * size] = channel_image
-        scale = 1 / size
-        plt.figure(figsize=(scale * display_grid.shape[1],
-                            scale * display_grid.shape[0]))
-        plt.axis('off')
-        plt.grid(False)
-        plt.imshow(display_grid, aspect='auto', cmap='viridis')
-        plt.savefig("Activation_map_" + str(count) + '_' + layer_name + '.png', dpi=300, bbox_inches='tight')    
+    import os
+    import torch
+    import matplotlib.pyplot as plt
+    from torchvision import transforms
+    from PIL import Image
+    import math
+
+    input_tensor = Image.open(path_to_preprocessed_image).convert('RGB')
+    convert_tensor = transforms.ToTensor()
+    input_tensor = convert_tensor(input_tensor).unsqueeze(0)
+
+
+    for z, model in enumerate(models):
+        # 3. Generate feature maps
+        feature_maps = get_feature_maps(model, input_tensor)
+
+        # 4. Visualize the feature maps
+        def visualize_feature_maps(feature_maps):
+            for layer_name, fmap in feature_maps.items():
+                batch, channels, height, width = fmap.shape
+                total_feature_maps = fmap.size(1)
+
+                n_cols = int(math.ceil(math.sqrt(total_feature_maps)))
+                n_rows = int(math.ceil(total_feature_maps / n_cols))
+
+                fig, axes = plt.subplots(n_rows, n_cols, figsize=(2 * n_cols, 2 * n_rows))
+                fig.suptitle(f'Feature maps for layer: {layer_name}', fontsize=16)
+
+                axes_flat = axes.flatten()
+
+                for i in range(n_rows * n_cols):
+                    if i < total_feature_maps:
+                        row = i // n_cols
+                        col = i % n_cols
+                        ax = axes[row, col] if n_rows > 1 else axes[col]
+                        ax.imshow(fmap[0, i, :, :].cpu())
+                
+                for ax in axes_flat:
+                    ax.axis('off')
+                filename = str(z) + '_' + model._get_name() + '_' + layer_name + '.png'
+                plt.suptitle(f'Feature maps for layer: {layer_name}')
+                plt.savefig(os.path.join(output_dir, filename), dpi=300)
+                plt.clf()
+                plt.close()
+                # plt.show()
+
+        # Call the visualization function
+        visualize_feature_maps(feature_maps)
     return
   
