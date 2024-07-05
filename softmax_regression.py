@@ -1,19 +1,26 @@
 import pandas as pd
 import numpy as np
-from imblearn.under_sampling import RandomUnderSampler
-from imblearn.over_sampling import RandomOverSampler 
-from feature_extraction.process_images import process_image_list
-from models.bayes_log_reg import bayes_logistic_reg
+
+from bayesian_models.bayes_log_reg import bayes_logistic_reg
 from sklearn.model_selection import StratifiedKFold
 from sklearn.preprocessing import normalize, StandardScaler
-from explainability.generate_cnn_heatmaps import generate_activation_maps, get_norm_image
-from explainability.generate_tables_and_figures import confusion_matrices, print_results
-from explainability.LIME import draw_heatmap, draw_top_heatmaps, get_segmentation_mask, predict_image
+
+from explainability.generate_cnn_heatmaps import generate_activation_maps
+from explainability.LIME import draw_heatmap, draw_top_heatmaps, get_segmentation_mask, predict_lime_image
 from glob import glob
 import os
 from random import sample
+from explainability.generate_tables_and_figures import print_results, get_confusion_matrices
 from lime import lime_image
 import pickle
+import traceback
+import sys
+
+PATH_TO_GESTALTMATCHER_DIR = ""
+sys.path.append(os.path.join(PATH_TO_GESTALTMATCHER_DIR))
+sys.path.append(os.path.join(PATH_TO_GESTALTMATCHER_DIR, 'GestaltEngine-FaceCropper-retinaface'))
+from get_feature_vector import gm_preprocess_image, preload_files
+
 
 def remove_empties(X_train, X_test, y_train, y_test):
     """
@@ -50,148 +57,249 @@ def remove_empties(X_train, X_test, y_train, y_test):
     X_test = X_test[~np.isnan(X_test[:,0])]
     return X_train, X_test, y_train, y_test, ind_remove_test
 
-if __name__ == '__main__':
-    PATH_TO_HYBRID_VECTORS = ''
-    N_FOLDS = 10 #number of folds for cross validation
-    N_RESAMPLE = 5 #number of times to rerun the random under/oversampling analysis
-    
-    file_paths = []
-    
-    labels = np.array(['DDX3X'] * 10 + ['KANSL1'] * 10 + ['ANKD11'] * 10)
-    
-    labels_orig = pd.factorize(labels)[1]
-    labels = pd.factorize(labels)[0]
-    
-    y_full_vgg, y_full_mediapipe, y_full_hybrid = labels,labels,labels
-    X_full_vgg, X_full_mediapipe = process_image_list(file_paths)
-    
-    try:
-        X_full_hybrid = pd.read_picle(PATH_TO_HYBRID_VECTORS)
-    except:
-        X_full_hybrid = np.random.uniform(size=(len(file_paths), 468))
-    
-    results = pd.DataFrame(columns=['vgg_pred','vgg_classes', 'vgg_trace',
-                                    'mp_pred', 'mp_classes', 'mp_trace',
-                                    'hybrid_pred', 'hybrid_classes', 'hybrid_trace', 
-                                    'y_true_vgg', 'y_true_mp', 'y_true_hybrid',
-                                    'lime_explanations', 'label_true_vgg'])
-    
-    segmentation_fn = get_segmentation_mask
-    explainer = lime_image.LimeImageExplainer(verbose=False, feature_selection='lasso_path')
-    
-    count = 0
-    y_series = pd.Series(labels).value_counts()
-    
-    for N_SAMPLES in [20, 40]: #under/oversample to both 20 and 40  
-        for z in range(N_RESAMPLE): #and another loop to run this analysis N_RESAMPLE times
-            ind_oversamp = list((y_series[(y_series < N_SAMPLES).sort_index()]).index)
-            ind_undersamp = list((y_series[(y_series > N_SAMPLES).sort_index()]).index)
-            
-            oversampling_dict = {}
-            undersampling_dict = {}
-            
-            for i in range(20):
-                if i in ind_oversamp:
-                    oversampling_dict[i] = N_SAMPLES
-                elif i in ind_undersamp:
-                    undersampling_dict[i] = N_SAMPLES
-                                
-            ind_sampling = np.array(range(len(X_full_vgg))).reshape(-1,1)
-            
-            sampler = RandomUnderSampler(undersampling_dict)
-            ind_sampling,y_sampled = sampler.fit_resample(ind_sampling,y_full_vgg)
-            sampler = RandomOverSampler(oversampling_dict)
-            ind_sampling,y_sampled = sampler.fit_resample(ind_sampling,y_sampled)
-            
-            ind_sampling = ind_sampling.flatten()
-            
-            X_sampled_vgg, y_sampled_vgg = X_full_vgg[ind_sampling], y_full_vgg[ind_sampling]
-            X_sampled_mp, y_sampled_mp = X_full_mediapipe[ind_sampling], y_full_mediapipe[ind_sampling]   
-            X_sampled_hybrid, y_sampled_hybrid = X_full_hybrid[ind_sampling], y_full_hybrid[ind_sampling]
-            
-            file_paths_sampled = np.array(file_paths)[ind_sampling]
-            
-            assert (y_sampled_mp == y_sampled_vgg).all()
-            assert (y_sampled_vgg == y_sampled_hybrid).all()
-            
-            skf = StratifiedKFold(n_splits=N_FOLDS)
-            for train_index, test_index in skf.split(X_sampled_vgg, y_sampled_vgg):
-                 count += 1
-                 
-                 X_train_vgg, X_test_vgg = X_sampled_vgg[train_index], X_sampled_vgg[test_index]
-                 y_train_vgg, y_test_vgg = y_sampled_vgg[train_index], y_sampled_vgg[test_index]
-                 
-                 X_train_mp, X_test_mp = X_sampled_mp[train_index], X_sampled_mp[test_index]
-                 y_train_mp, y_test_mp = y_sampled_mp[train_index], y_sampled_mp[test_index]
-                 
-                 X_train_hybrid, X_test_hybrid = X_sampled_hybrid[train_index], X_sampled_hybrid[test_index]
-                 y_train_hybrid, y_test_hybrid = y_sampled_hybrid[train_index], y_sampled_hybrid[test_index]
-        
-                 assert (y_test_mp == y_test_vgg).all()
-                 assert (y_test_vgg == y_test_hybrid).all()
-                 
-                 X_train_hybrid, X_test_hybrid, y_train_hybrid, y_test_hybrid, ind_remove_test_hybrid = remove_empties(X_train_hybrid, X_test_hybrid, y_train_hybrid, y_test_hybrid)
-                 X_train_mp, X_test_mp, y_train_mp, y_test_mp, ind_remove_test_mp = remove_empties(X_train_mp, X_test_mp, y_train_mp, y_test_mp)
-                 X_train_vgg, X_test_vgg, y_train_vgg, y_test_vgg, ind_remove_test_vgg = remove_empties(X_train_vgg, X_test_vgg, y_train_vgg, y_test_vgg)
-                 
-                 X_train_hybrid = np.append(normalize(X_train_hybrid[:,:340]),normalize(X_train_hybrid[:,340:]),axis=1)
-                 X_test_hybrid = np.append(normalize(X_test_hybrid[:,:340]),normalize(X_test_hybrid[:,340:]),axis=1)
-                 scale = StandardScaler()
-                 X_train_hybrid = scale.fit_transform(X_train_hybrid)
-                 X_test_hybrid = scale.transform(X_test_hybrid)
-                     
-                 scale = StandardScaler()
-                 X_train_mp = scale.fit_transform(normalize(X_train_mp))
-                 X_test_mp = scale.transform(normalize(X_test_mp))
-        
-                 print("VGG shapes" + str(X_train_vgg.shape))
-                 print("MP shapes" + str(X_train_mp.shape))
-                 print("hybrid shapes" + str(X_train_hybrid.shape))
-                 
-                 predictions_hybrid, predicted_classes_hybrid, trace, summ_trace_hybrid, X_shared_hybrid, trace_hybrid, model_hybrid = bayes_logistic_reg(X_train_hybrid, y_train_hybrid, X_test_hybrid, advi=False, prior_inclusion_prob=0.1, target_accept=0.99, tune_steps=1000)
-                 results.at[count, 'hybrid_pred'], results.at[count, 'hybrid_classes'], results.at[count, 'hybrid_trace'] = predictions_hybrid, predicted_classes_hybrid, summ_trace_hybrid
-                 
-                 predictions_vgg, predicted_classes_vgg, trace, summ_trace_vgg, X_shared, trace, model = bayes_logistic_reg(X_train_vgg, y_train_vgg, X_test_vgg, advi=False, prior_inclusion_prob=0.1, target_accept=0.9, tune_steps=1000)
-                 results.at[count, 'vgg_pred'], results.at[count, 'vgg_classes'], results.at[count, 'vgg_trace'] = predictions_vgg, predicted_classes_vgg, summ_trace_vgg
-        
-                 if N_SAMPLES == 20:
-                    #needs to be done because LIME library does not support extra arguments to the predict function 
-                    with open('model.pickle', 'wb') as buff:
-                        pickle.dump({'model': model, 'trace': trace, 'X_shared': X_shared}, buff)
-                    file_paths_test = file_paths_sampled[test_index]
-                    explanations = []
-                    for z in range(len(file_paths_test)):
-                       try:
-                           explanation = explainer.explain_instance(get_norm_image(str(file_paths_test[z]))[0], predict_image, top_labels=len(labels_orig), num_samples=100, batch_size=100, segmentation_fn=segmentation_fn)
-                           explanations.append(explanation)
-                       except:
-                           explanations.append('')
 
-                 predictions_mp, predicted_classes_mp, trace, summ_trace_mp, X_shared_mp, trace_mp, model_mp = bayes_logistic_reg(X_train_mp, y_train_mp, X_test_mp, advi=False, prior_inclusion_prob=0.1, target_accept=0.9, tune_steps=1000)
-                 results.at[count, 'mp_pred'], results.at[count, 'mp_classes'], results.at[count, 'mp_trace'] = predictions_mp, predicted_classes_mp, summ_trace_mp
-                     
-                 results.at[count, 'y_true_mp'] = y_test_mp
-                 results.at[count, 'y_true_vgg'] = y_test_vgg
-                 results.at[count, 'y_true_hybrid'] = y_test_hybrid
-                 
-                 results.at[count, 'lime_explanations'] = explanations
-                 results.at[count, 'label_true_vgg'] = [str(labels_orig[x]) for x in y_test_vgg]
-                 
-                 results.to_pickle('softmax_results.pickle')
-                 
-    df_results = pd.DataFrame(results).reset_index(drop=True)
-    df_results_20 = df_results.iloc[:int(len(df_results)/2),:].reset_index(drop=True)
-    df_results_40 = df_results.iloc[int(len(df_results)/2):,:].reset_index(drop=True)
-    
+def get_lime_images(df_data, df_results, syndrome_to_investigate, factorizations, N_SAMPLES = 10, model='gm'):
+    skf = StratifiedKFold(n_splits=3)
+
+    models, device, gallery_set_representations, representation_df, model_detect, device_detect = preload_files(cpu=True)
+
+    df_results = df_results[df_results['model'] == model]
+    df_results = df_results[df_results['train_filenames'].str.len() == df_results['train_filenames'].str.len().max()].reset_index(drop=True)
+    assert len(df_results) == skf.n_splits
+
+    all_files = df_results.test_filenames.explode().reset_index(drop=True)
+    all_predictions = df_results.pred.explode().reset_index(drop=True)
+
+    df_files_and_predictions_exploded = pd.concat([all_files, all_predictions], axis=1)
+    df_files_and_predictions_exploded_syndrome = df_files_and_predictions_exploded[df_files_and_predictions_exploded.iloc[:,0].str.contains(syndrome_to_investigate.lower())].reset_index(drop=True)
+
+    for i in range(len(df_files_and_predictions_exploded_syndrome)):
+        #get prediction for that specific syndrome
+        df_files_and_predictions_exploded_syndrome.loc[i, 'pred'] = df_files_and_predictions_exploded_syndrome.loc[i, 'pred'][np.argmax(factorizations == syndrome_to_investigate)]
+
+    top_correctly_predicted =  df_files_and_predictions_exploded_syndrome.loc[df_files_and_predictions_exploded_syndrome['pred'].astype(float).nlargest(N_SAMPLES).index, 'test_filenames']
+
+    df_all_explan = pd.DataFrame()
+
+    for train_index, test_index in skf.split(df_unaugmented.gene, df_unaugmented.gene):
+        df_train = df_augmented[df_augmented['filename_unaugmented_parent'].isin(
+            df_unaugmented.loc[train_index, 'filename'])].groupby('gene').sample(N_SAMPLES).reset_index(
+            drop=True)
+        y_train = df_train['gene']
+
+        for n in range(len(y_train)):
+            y_train[n] = np.argmax(factorizations == y_train[n])
+
+        X_train = []
+        for i in range(len(df_train)):
+            X_train.append(df_train.loc[i, model + '_vector'])
+        X_train, y_train = np.array(X_train, dtype=np.float32), np.array(y_train, dtype=int)
+
+        X_test, y_test, y_test_filename = [], [], []
+        for i in range(len(df_unaugmented)):
+            if i in test_index and np.mean(pd.isna(df_unaugmented.loc[i, model + '_vector']) == False) == 1:
+                X_test.append(df_unaugmented.loc[i, model + '_vector'])
+                y_test.append(df_unaugmented.loc[i, 'gene'])
+                y_test_filename.append(df_unaugmented.loc[i, 'filename'])
+        X_test, y_test, y_test_filename = np.array(X_test, dtype=np.float32), np.array(y_test), np.array(
+            y_test_filename)
+        for n in range(len(y_test)):
+            y_test[n] = np.argmax(factorizations == y_test[n])
+
+        X_train, X_test, y_train, y_test, ind_remove_test = \
+            remove_empties(X_train, X_test, y_train, y_test)
+
+        predictions, predicted_classes, trace, summ_trace, X_shared, pm_model = bayes_logistic_reg(X_train,
+                                                                                                   y_train,
+                                                                                                   X_test,
+                                                                                                   advi=False,
+                                                                                                   N_CORES=1,
+                                                                                                   prior_inclusion_prob=0.1,
+                                                                                                   target_accept=0.99,
+                                                                                                   tune_steps=1000)
+
+        chosen_indices_top_predictions = np.nonzero(pd.Series(y_test_filename).isin(top_correctly_predicted))
+        y_test_this_fold_of_investigated_syndrome = y_test_filename[chosen_indices_top_predictions]
+
+        # Assuming df_data_paths is a pandas DataFrame with 'identifier' and 'path_to_file' columns
+        # and y_test_filename is a list of filenames to search for.
+        y_test_filename_full = []
+
+        df_data_paths = pd.read_excel(path_to_data_file)
+        df_data_paths['identifier'] = df_data_paths['identifier'].str[:-4].str.lower()
+        for full_filename in y_test_this_fold_of_investigated_syndrome:
+            filename = full_filename[:-4]
+            if 'deaf1_' in filename:
+                filename = filename[9:]
+            # Try to find the full path using the entire filename
+            match = df_data_paths[df_data_paths['identifier'] == filename]['path_to_file']
+            if match.empty:
+                # If no match found, split the filename and try again
+                parts = filename.split('_')
+                match = df_data_paths[df_data_paths['identifier'] == '_'.join(parts[1:])]['path_to_file']
+            if not match.empty:
+                # If a match is found, add it to the full filename list
+                y_test_filename_full.append(match.iloc[0])
+            else:
+                # If no match is found after all attempts, raise an error
+                raise ValueError(f"No match found for {filename} after all attempts.")
+
+        classifier_dict = {
+            'model' : pm_model,
+            'trace' : trace,
+            'X_shared' : X_shared,
+            'gm_models': models,
+            'device': device
+        }
+
+        explanations = []
+        print(y_test_filename_full)
+        for file_path in y_test_filename_full:
+            exp_face = []
+            local_pred_face = []
+            for m in range(100):
+                segmentation_fn = get_segmentation_mask
+                explainer = lime_image.LimeImageExplainer(verbose=False, feature_selection='lasso_path')
+                try:
+                    explanation = explainer.explain_instance(gm_preprocess_image(file_path, model_detect, device_detect, cpu=True), predict_lime_image,
+                                                             top_labels=len(factorizations), num_samples=100,
+                                                             batch_size=100, segmentation_fn=segmentation_fn, classifier_args=classifier_dict)
+                    exp_face.append(explanation)
+                    local_pred_face.append(explanation.local_pred[0])
+                except:
+                    print(traceback.format_exc())
+            explanations.append([file_path, exp_face, local_pred_face])
+        df_explan = pd.DataFrame(explanations)
+        df_explan.columns = ['file_path', 'explanations', 'lime_pred']
+        df_explan['predicted_classes'] = predicted_classes[chosen_indices_top_predictions].astype(int)
+        df_explan['y_true'] = y_test[chosen_indices_top_predictions]
+        df_explan['y_true'] = df_explan['y_true'].astype(int)
+        df_explan['predictions'] = ''
+        assert len(df_explan) == len(predictions[chosen_indices_top_predictions])
+        for z in range(len(df_explan)):
+            df_explan.at[z, 'predictions'] = predictions[chosen_indices_top_predictions][z]
+        df_all_explan = pd.concat([df_all_explan, df_explan], axis=0)
+        df_all_explan.to_pickle('gestaltmatcher_lime.pickle')
+
+
+if __name__ == '__main__':
+    models = ['gm', 'hybrid', 'mp', 'facenet', 'vgg', 'qmagface']
+
+    try:
+        df_data = pd.read_pickle('df_preprocessed_data.pickle')
+        for i in range(len(df_data)):
+            if 'SATB1' in df_data.loc[i,'gene']:
+                if 'missense' in df_data.loc[i,'filename']:
+                    df_data.loc[i, 'gene'] = 'SATB1_missense'
+                elif 'ptv' in df_data.loc[i,'filename']:
+                    df_data.loc[i, 'gene'] = 'SATB1_ptv'
+                else:
+                    ValueError(i)
+            if 'DEAF' in df_data.loc[i, 'gene']:
+                if 'ar' in df_data.loc[i, 'filename']:
+                    df_data.loc[i, 'gene'] = 'DEAF1_AR'
+                elif 'ad' in df_data.loc[i, 'filename']:
+                    df_data.loc[i, 'gene'] = 'DEAF1_AD'
+                else:
+                    ValueError(i)
+        assert len(df_data['gene'].unique()) == 39
+    except:
+        raise ValueError("Please preprocess and augment the images first!")
+
+    df_unaugmented = df_data.loc[df_data['filename_unaugmented_parent'] == 'is_parent', :].reset_index(drop=True)
+    df_augmented = df_data.loc[df_data['filename_unaugmented_parent'] != 'is_parent', :]
+    df_augmented = df_augmented.dropna().reset_index(drop=True)
+
+    for m in models:
+        vec_col = m + '_vector'
+        df_augmented = df_augmented[[sum(i) != 0 for i in df_augmented[vec_col]]]
+        df_augmented = df_augmented[[~np.isnan(i[0]) for i in df_augmented[vec_col]]]
+
+    count = 0
+    if os.path.isfile('softmax_results_.pickle'):
+        df_results = pd.read_pickle('softmax_results_.pickle')
+        print('result dataframe found and loaded with size ' + str(len(df_results)))
+    else:
+        df_results = pd.DataFrame()
+        df_results['train_filenames'], df_results['test_filenames'] = '', ''
+        df_results['model'], df_results['pred'], df_results['classes'], df_results['trace'], df_results['y_true'] = '', '', '', '', ''
+
+    factorizations = pd.Series(pd.factorize(df_unaugmented['gene'])[1])
+
+    for N_SAMPLES in [5, 10, 25]:
+        skf = StratifiedKFold(n_splits=3)
+        split = 0
+        for train_index, test_index in skf.split(df_unaugmented.gene, df_unaugmented.gene):
+            split += 1
+            for model in models:
+                if len(df_results) > count:
+                    print("skipping count " + str(count))
+                    count += 1
+                    continue
+                if count % len(models) == 0:
+                    df_train = df_augmented[df_augmented['filename_unaugmented_parent'].isin(
+                        df_unaugmented.loc[train_index, 'filename'])].groupby('gene').sample(N_SAMPLES).reset_index(drop=True)
+                else:
+                    prev_filenames = df_results.loc[len(df_results)-1, 'train_filenames']
+                    df_train = df_augmented[df_augmented['filename'].isin(prev_filenames)].reset_index(drop=True)
+
+                y_train = df_train['gene']
+
+                for n in range(len(y_train)):
+                    y_train[n] = np.argmax(factorizations == y_train[n])
+
+                X_train = []
+                for i in range(len(df_train)):
+                    X_train.append(df_train.loc[i, model + '_vector'])
+                X_train, y_train = np.array(X_train, dtype=np.float32), np.array(y_train, dtype=int)
+
+                X_test, y_test, y_test_filename = [], [], []
+                for i in range(len(df_unaugmented)):
+                    if i in test_index and np.mean(pd.isna(df_unaugmented.loc[i, model + '_vector']) == False) == 1:
+                        X_test.append(df_unaugmented.loc[i, model + '_vector'])
+                        y_test.append(df_unaugmented.loc[i, 'gene'])
+                        y_test_filename.append(df_unaugmented.loc[i, 'filename'])
+                X_test, y_test, y_test_filename = np.array(X_test, dtype=np.float32), np.array(y_test), np.array(y_test_filename)
+                for n in range(len(y_test)):
+                    y_test[n] = np.argmax(factorizations == y_test[n])
+
+                df_results.at[count, 'train_filenames'] = ''
+                df_results.at[count, 'train_filenames'] = df_train['filename'].to_numpy()
+                df_results.at[count, 'test_filenames'] = y_test_filename
+
+                X_train, X_test, y_train, y_test, ind_remove_test =\
+                    remove_empties(X_train, X_test, y_train, y_test)
+
+                if model == 'hybrid':
+                    X_train = np.append(normalize(X_train[:,:340]),normalize(X_train[:,340:]),axis=1)
+                    X_test = np.append(normalize(X_test[:,:340]),normalize(X_test[:,340:]),axis=1)
+                    scale = StandardScaler()
+                    X_train = scale.fit_transform(X_train)
+                    X_test = scale.transform(X_test)
+
+                if model == 'mp':
+                    scale = StandardScaler()
+                    X_train = scale.fit_transform(normalize(X_train))
+                    X_test = scale.transform(normalize(X_test))
+
+                predictions, predicted_classes, trace, summ_trace, X_shared, pm_model = bayes_logistic_reg(X_train, y_train, X_test, advi=False, N_CORES=1, prior_inclusion_prob=0.1, target_accept=0.99, tune_steps=1000)
+
+                df_results.at[count, 'pred'], df_results.at[count, 'classes'], df_results.at[count, 'trace'] = predictions, predicted_classes, summ_trace
+                df_results.at[count, 'model'] = model
+                df_results.at[count, 'y_true'] = np.array(y_test, dtype=int)
+                df_results.to_pickle('softmax_results_.pickle')
+                count += 1
+
+    get_lime_images(df_data, model='gm')
+
     #generate tables and figures
-    confusion_matrices(df_results_20, df_results_40)
-    print_results(df_results_20, df_results_40)
-    
+    print_results(df_results)
+    get_confusion_matrices(df_results, factorizations)
+
     IMAGE_PATH = os.path.join(os.getcwd(), 'images')
     random_img = sample(glob(IMAGE_PATH +'\\*'),1)[0]
     #generate activation maps for this randomly selected image
     generate_activation_maps(random_img)
     
-    #draw heatmap for one instance and then calculate average heatmaps for the top
-    draw_heatmap(df_results.loc[:, 'lime_explanations'].explode().to_numpy()[0], labels_orig)
-    draw_top_heatmaps(df_results_20, labels_orig)
+    #draw heatmap
+    draw_top_heatmaps(df_results, factorizations)
