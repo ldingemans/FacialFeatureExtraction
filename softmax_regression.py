@@ -180,6 +180,7 @@ def get_lime_images(df_data, df_results, syndrome_to_investigate, factorizations
             df_explan.at[z, 'predictions'] = predictions[chosen_indices_top_predictions][z]
         df_all_explan = pd.concat([df_all_explan, df_explan], axis=0)
         df_all_explan.to_pickle('gestaltmatcher_lime.pickle')
+        return df_all_explan
 
 
 if __name__ == '__main__':
@@ -290,7 +291,7 @@ if __name__ == '__main__':
                 df_results.to_pickle('softmax_results_.pickle')
                 count += 1
 
-    get_lime_images(df_data, model='gm')
+    df_explanations = get_lime_images(df_data, model='gm')
 
     #generate tables and figures
     print_results(df_results)
@@ -302,4 +303,4 @@ if __name__ == '__main__':
     generate_activation_maps(random_img)
     
     #draw heatmap
-    draw_top_heatmaps(df_results, factorizations)
+    draw_top_heatmaps(df_explanations, factorizations)
