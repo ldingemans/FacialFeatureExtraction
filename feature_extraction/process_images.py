@@ -2,11 +2,8 @@ import pandas as pd
 from tqdm import tqdm
 import scipy
 import numpy as np
-from sklearn.metrics import roc_auc_score, brier_score_loss
-import random
-import os
-import sys
 from deepface import DeepFace
+from QMagFace.get_embedding_from_filename import predict_qmagface
 
 def angle_to(p1, p2, rotation=0, clockwise=False):
     """
@@ -175,16 +172,28 @@ def process_image_list(path_to_files):
         Extracted feature vectors
     X_mediapipe: numpy array
         Extracted feature vectors
+    X_FaceNet: numpy array
+        Extracted feature vectors
+    X_qmagface: numpy array
+        Extracted feature vectors
     """
-    X_VGG_Face, X_mediapipe = [], []
-        
-    for file in path_to_files:
-        X_VGG_Face.append(DeepFace.represent(file, model_name='VGG-Face',detector_backend='mtcnn'))
-        raw_landmarks, landmarks, crop_img = get_crop_image(file)
-        X_mediapipe.append(calc_selected_distances(raw_landmarks, 'euclidean'))
-    
+    X_VGG_Face, X_FaceNet, X_mediapipe = np.zeros((len(path_to_files), 2622)), np.zeros((len(path_to_files), 512)), \
+                                         np.zeros((len(path_to_files), 1365))
+
+    vgg_face = DeepFace.build_model('VGG-Face')
+    facenet = DeepFace.build_model('Facenet512')
+
+    for i, file in enumerate(tqdm(path_to_files)):
+        X_VGG_Face[i,:] = DeepFace.represent(file, model_name='VGG-Face', model=vgg_face, detector_backend='mtcnn', enforce_detection=False)
+        X_FaceNet[i, :] = DeepFace.represent(file, model_name='Facenet512', model=facenet, detector_backend='mtcnn', enforce_detection=False)
+        try:
+            raw_landmarks, landmarks, crop_img = get_crop_image(file)
+            X_mediapipe[i, :] = calc_selected_distances(raw_landmarks, 'euclidean')
+        except:
+            continue
+
     X_mediapipe = merge_distances(np.array(X_mediapipe))
-    
-    return np.array(X_VGG_Face), X_mediapipe
-        
-            
+
+    X_qmagface = predict_qmagface(path_to_files)
+
+    return np.array(X_VGG_Face), X_mediapipe, np.array(X_FaceNet), X_qmagface
