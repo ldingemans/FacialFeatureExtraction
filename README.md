@@ -21,6 +21,8 @@ The main analysis can be run from the `softmax_regression.py` script in the root
 
 For `GestaltMatcher-arc` the code and models are not freely available, please see https://www.gestaltmatcher.org/ for the procedure to get access. Then update `PATH_TO_GESTALTMATCHER_DIR` to point it to where the model is.
 
+For `QMagFace`, please see https://github.com/pterhoer/QMagFace and clone that repository in the root directory.
+
 In the `explainability` folder, you can find the needed scripts to generate all figures and tables displayed in our paper. Furthermore the code to generate activation maps for `GestaltMatcher-arc` (or another CNN) is there, as is the code to generate the LIME heatmaps.
 
 <h2>Retraining the model on your own images</h2>
