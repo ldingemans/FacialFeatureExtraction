@@ -38,11 +38,11 @@ def logit_normal_CASS(prior_inclusion_prob, sigma_v, p, K):
         lamb_logit = pm.Deterministic('lamb_logit', pm.math.invlogit(lamb_raw))
         beta_raw = pm.Normal('beta_raw', mu=0, sd=1, shape=(p, K-1))
         beta_raw_stacked = pm.Deterministic('beta_raw_stacked', tt.tensor.horizontal_stack(beta_raw, tt.tensor.zeros(shape=(p, 1))))
-        beta_lncass = pm.Deterministic('beta_lncass', beta_raw_stacked * pm.math.sqr(tt.tensor.repeat(lamb_logit, K, axis=1) * tau))
+        beta_lncass = pm.Deterministic('beta_lncass', beta_raw_stacked * tt.tensor.repeat(lamb_logit, K, axis=1) * tau)
     return beta_lncass
 
 
-def bayes_logistic_reg(X_train, y_train, X_test, advi=False, prior_inclusion_prob=0.1, N_CORES=8, tune_steps=2000, target_accept=0.8, LN_CASS=True):
+def bayes_logistic_reg(X_train, y_train, X_test, advi=False, prior_inclusion_prob=0.1, N_CORES=1, tune_steps=2000, target_accept=0.8, LN_CASS=True):
     """
     Building the Bayesian logistic regression model using PyMC3
     Parameters
@@ -86,7 +86,7 @@ def bayes_logistic_reg(X_train, y_train, X_test, advi=False, prior_inclusion_pro
 
       X_shared = pm.Data('X_shared', X_train)
       if no_of_classes == 2:
-          alpha = pm.Normal('alpha', mu=0, sd=3) 
+          alpha = pm.Normal('alpha', mu=0, sd=3)
           equations = alpha + pm.math.dot(X_shared, beta)
           θ = pm.Deterministic('θ', pm.invlogit(equations))      
           y_model = pm.Bernoulli('y_model', p=θ, observed=y_train) 
@@ -101,7 +101,8 @@ def bayes_logistic_reg(X_train, y_train, X_test, advi=False, prior_inclusion_pro
           approx = pm.fit(500000, method='fullrank_advi')
           trace = approx.sample(draws=10000)
           
-      summ_trace = az.summary(trace)
+      # summ_trace = az.summary(trace)
+      summ_trace = None
       if no_of_classes == 2:
           X_shared.set_value(X_test)
           ppc = pm.sample_posterior_predictive(trace, samples=5000, model=model, var_names=['y_model', 'θ'])
@@ -113,4 +114,4 @@ def bayes_logistic_reg(X_train, y_train, X_test, advi=False, prior_inclusion_pro
           predictions = ppc['probabilities'].mean(axis=0)
           predicted_classes = np.argmax(np.exp(predictions).T / np.sum(np.exp(predictions), axis=1), axis=0)
           
-      return predictions, predicted_classes, trace, summ_trace
+      return predictions, predicted_classes, trace, summ_trace, X_shared, model
